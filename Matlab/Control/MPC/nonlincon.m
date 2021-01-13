@@ -16,8 +16,8 @@ ceq_fp = -r_FP(1:n_n-k_OV) +(beta*epsi(r_p(1:n_n-k_OV),r_n(1:n_n-k_OV)) + (1-bet
 ceq_fn = -r_FN(1:n_n-k_OV) +(alpha*ceta(r_p(1:n_n-k_OV),r_n(1:n_n-k_OV)) + (1-alpha)*(1-epsi(r_p(1:n_n-k_OV),r_n(1:n_n-k_OV)))).*r_p(1:n_n-k_OV);
 ceq_tn = -r_TN(1:n_n-k_OV) +((1-beta)*ceta(r_p(1:n_n-k_OV),r_n(1:n_n-k_OV)) + beta*(1-epsi(r_p(1:n_n-k_OV),r_n(1:n_n-k_OV)))).*r_n(1:n_n-k_OV);
 
-ceq_P = r_p(k_OV+1:n_n) - u_p(k_OV+1:n_n).*r_TP(1:n_n-k_OV) - u_n(k_OV+1:n_n).*r_FN(1:n_n-k_OV) - r_s(1,k_OV+1:n_n)';
-ceq_N = r_n(k_OV+1:n_n) - u_p(k_OV+1:n_n).*r_FP(1:n_n-k_OV) - u_n(k_OV+1:n_n).*r_TN(1:n_n-k_OV) - r_s(2,k_OV+1:n_n)';
+ceq_P = r_p(k_OV+k_SO+1:n_n+k_SO) - u_p(k_OV+1:n_n).*r_TP(1:n_n-k_OV) - u_n(k_OV+1:n_n).*r_FN(1:n_n-k_OV) - r_s(1,k_OV+1:n_n)';
+ceq_N = r_n(k_OV+k_SO+1:n_n+k_SO) - u_p(k_OV+1:n_n).*r_FP(1:n_n-k_OV) - u_n(k_OV+1:n_n).*r_TN(1:n_n-k_OV) - r_s(2,k_OV+1:n_n)';
 ceq = [ceq_tp;ceq_fp;ceq_fn;ceq_tn;ceq_P; ceq_N];
 c = [];
 end

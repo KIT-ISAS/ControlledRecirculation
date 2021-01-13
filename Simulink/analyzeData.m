@@ -1,0 +1,17 @@
+y_TP_R = squeeze(out.y.Data(1,:,:));
+y_FP_R= squeeze(out.y.Data(2,:,:));
+y_FN_R= squeeze(out.y.Data(3,:,:));
+y_TN_R = squeeze(out.y.Data(4,:,:));
+r_sp = out.r_sp_simulation.Data;
+r_sn = out.r_sn_simulation.Data;
+r_for_p = squeeze(out.r_s_for.Data(1,:,:));
+r_for_n = squeeze(out.r_s_for.Data(2,:,:));
+r_sn_t = out.r_sn_simulation.Time;
+y_TP = squeeze(out.y_p.Data(:,1));
+y_FP = squeeze(out.y_p.Data(:,2));
+y_FN = squeeze(out.y_n.Data(:,1));
+y_TN = squeeze(out.y_n.Data(:,2));
+y_TP_F = squeeze(out.y_rueck_TP.Data);
+y_FP_F= squeeze(out.y_rueck_FP.Data);
+y_FN_F= squeeze(out.y_rueck_FN.Data);
+y_TN_F = squeeze(out.y_rueck_TN.Data);

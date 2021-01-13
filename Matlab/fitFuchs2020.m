@@ -1,4 +1,5 @@
-clear all
+%% Daten sind aus der BA von Tobias Fuchs, die er 2020 am Institut für Mess- und Regelungstechnik geschrieben hat
+clear global
 %% Parameter
 % Anzahl Teilchen
 n = 7250; 
@@ -6,7 +7,10 @@ n = 7250;
 x_cN = [10 20 30 40 48];
 y_PPV = [0.998 0.996 0.9945 0.991 0.987];
 y_NPV = [0.918 0.9345 0.945 0.952 0.949];
-
+% Da diese Werte für die Simulation viel zu gut sind werden die
+% verschlechtert
+y_NPV = 0.9*y_NPV;
+y_PPV = 0.9*y_PPV;
 %% Die PPV und NPV Funktionen aus Fuch2020 werden gefitted
 % PPV ist eine Exponentielle Funktion
 PPV_fit=fit(x_cN',y_PPV','exp2')
@@ -48,28 +52,33 @@ fplot(TP_Anteil)
 title('Anteil TP an den Gutpartikeln')
 xlabel('c_N in %')
 ylabel('TP-Anteil')
-axis([10 50 0.94 1])
+axis([10 50 0.8 1])
 subplot(3,2,4)
 fplot(TN_Anteil)
-title('Anteil TP an den Schlechtpartikeln')
+title('Anteil TN an den Schlechtpartikeln')
 xlabel('c_N in %')
-ylabel('TP-Anteil')
-axis([10 50 0.96 1])
+ylabel('TN-Anteil')
+axis([10 50 0 1])
 subplot(3,2,5)
 fplot(FN_Anteil)
 title('Anteil FN an den Gutpartikeln')
 xlabel('c_N in %')
-ylabel('TP-Anteil')
-axis([10 50 0 0.06])
+ylabel('FN-Anteil')
+axis([10 50 0 0.2])
 subplot(3,2,6)
 fplot(FP_Anteil)
 title('Anteil FP an den Schlechtpartikeln')
 xlabel('c_N in %')
-ylabel('TP-Anteil')
-axis([10 50 0.01 0.02])
+ylabel('FP-Anteil')
+axis([10 50 0.01 1])
 %% Berechnung der Gesamtgenauigkeit (ACC) zur Überprüfung der Ergebnisse
 ACC = (TP_sol + TN_sol)/n;
-
+% figure
+% fplot(ACC)
+% title('Gesamtgenauigkeit')
+% xlabel('c_N in %')
+% ylabel('ACC')
+% axis([10 50 0.9 1])
 %% TP_Anteil und TN_Anteil als Simulink Bock definieren
 % muss nur ausgeführt werden, wenn Daten geändert werden
 % matlabFunctionBlock('library_schuettgut/anteil_TP', TP_Anteil)
