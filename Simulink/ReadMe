@@ -1,0 +1,6 @@
+Auswahl des MPC ist noch ein wenig komplizierter.
+
+Auch der Austausch der Kennlinien sollte vereinfacht werden
+
+Wie wird das System gestartet: Das eigentliche Modell ist die Datei model_schuettgut. Diese benötigt jedoch zusätzlich die library_schuettgut und einige der Funktionen.
+In meinem Fall reicht es einfach Simulink zu öffnen und dann wird mir direkt vorgeschlagen das Projekt Simulink.prj zu öffnen. In dem sind alle Verknüpfungen enthalten. 
