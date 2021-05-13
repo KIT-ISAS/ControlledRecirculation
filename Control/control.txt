@@ -1,0 +1,2 @@
+    percentageAccept     percentageReject
+                0.80                 0.32
