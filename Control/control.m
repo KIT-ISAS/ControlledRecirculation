@@ -35,13 +35,16 @@ assert(startAt<endAt,'Last frame before first relevant frame. This is either an 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Initialisierung des Reglers
 % Massenstrom der Targets und der Massenstrom der No-Targets hin
-r_measured = [50; 50];
-% Anzahl ZustÃ¤nde
+szenarioFolder = 'Szenario';
+r_measured = getSzenario(szenarioFolder);
+% Anzahl Zustaende
 n_x = 4;
+% Maximum number of particles on the conveyor belt
+qMax = 300;
 
-k_max = int16((c.tau_LV + c.tau_KO + c.tau_OL+ c.tau_V+ c.tau_SK)/c.T);
+k_hat = int16((c.tau_LV + c.tau_KO + c.tau_OL+ c.tau_V+ c.tau_SK)/c.T);
 % Steuerhorizont
-n_n = k_max;
+n_n = k_hat;
 x0 = zeros(4*n_n,1);
 %Für das Einlesen der Datei, die die zweite Kamera simuliert
 y_fol='..\Sortierung';
@@ -90,7 +93,9 @@ for t=startAt:endAt
     if ~isempty(currMeasurements.visualClassifications) 
         color = currMeasurements.visualClassifications(1,:);
         % Stimmt das hier so mit den Werten 1 und 2?
+        % Das hier sollen die no-targets sein
         sum_color_accept = sum(color == 2);
+        % das hier sollen die targets sein
         sum_color_reject = sum(color == 1);
         switch c.type
             case 'PI'
@@ -125,8 +130,8 @@ for t=startAt:endAt
                     q_measured(:,1)     = [];
                     q_measured(:,k_KL)  = q;
                     [percentageAccept,percentageReject,x_opt,exitflag,fval] = ...
-                        mpcSchuettgut(r_measured, x0, y_measured, q_measured, u_measured, ...
-                        n_n, k_max,k_LV,k_V,k_VK, n_x, [c.weights.cTPR 0 0 c.weights.cTNR], c.objective, [0 0],1);
+                        mpcSchuettgut(r_measured, x0, y_measured, q_measured, u_measured,n_n, ...
+                        k_hat,k_LV,k_V,k_VK,k_KL,n_x, [c.weights.cTPR 0 0 c.weights.cTNR], c.objective, [0 0],1,qMax);
                     x0 = x_opt;
                     ii=ii+1;
                 end
