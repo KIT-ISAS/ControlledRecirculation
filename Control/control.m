@@ -47,8 +47,9 @@ k_hat = int16((c.tau_LV + c.tau_KO + c.tau_OL+ c.tau_V+ c.tau_SK)/c.T);
 n_n = k_hat;
 x0 = zeros(4*n_n,1);
 %Für das Einlesen der Datei, die die zweite Kamera simuliert
-y_fol='..\Sortierung';
-y_file = 'PartikelSortierung_';
+% Sortierte_Partikel/Partikel_xxx.txt, mit xxx = Zeitstempel
+y_fol='..\Sortierte_Partikel';
+y_file = 'Partikel_';
 
 % Initialisierung der Totzeiten und Messvektoren
 k_LV        = int16(c.tau_LV/c.T);
