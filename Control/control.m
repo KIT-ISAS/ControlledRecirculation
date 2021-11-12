@@ -12,7 +12,7 @@ percentageReject = 0;
 allParam.live.enabled=1;
 c.type='MPC';
 ii=3; % Count variable for folder content 
-
+jj = 1; % Count variable for reading particle input of system
 fileID = fopen('control.txt','w');
 %     fprintf(fileID,'%6s %12s %12s\n','timestep','percentageAccept','percentageReject');
 %     fprintf(fileID,'%6f %12.2f %12.2f\n',[timestep percentageAccept percentageReject]);
@@ -36,7 +36,9 @@ assert(startAt<endAt,'Last frame before first relevant frame. This is either an 
 %% Initialisierung des MPC
 % Massenstrom der Targets und der Massenstrom der No-Targets hin
 szenarioFolder = 'Szenario';
-r_measured = getSzenario(szenarioFolder,c.fileName);
+r_measured = getSzenario(szenarioFolder,c.fileName,c.T);
+% Prädiktionshorizont
+n_p = size(r_measured,2);
 % Anzahl Zustaende
 n_x = 4;
 % Maximum number of particles on the conveyor belt
@@ -135,11 +137,19 @@ for t=startAt:endAt
                     u_measured(:,k_VK)  = [percentageAccept;percentageReject];
                     q_measured(:,1)     = [];
                     q_measured(:,k_KL)  = q;
+                    if n_p > 1
+                        % Zufluss wird nicht als konstant angenommen
+                        r = r_measured(:,jj:n_p);
+                    else
+                        % Zufluss wird als konstant angenommen
+                        r = r_measured;
+                    end
                     [percentageAccept,percentageReject,x_opt,exitflag,fval] = ...
-                        mpcSchuettgut(r_measured, x0, y_measured, q_measured, u_measured,n_n, ...
+                        mpcSchuettgut(r, x0, y_measured, q_measured, u_measured,n_n, ...
                         k_hat,k_LV,k_V,k_VK,k_KL,n_x, [c.weights.cTPR 0 0 c.weights.cTNR], c.objective, [0 0],1,qMax);
                     x0 = x_opt;
                     ii=ii+1;
+                    jj = jj +1;
                 end
                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             case 'stochastic'

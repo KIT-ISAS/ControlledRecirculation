@@ -82,7 +82,7 @@ ub = [ub_u q_max*ones(1, (n_x-2)*n_n)]';
 k_lc = size(y_known,2);
 
 if all(n_n > k_hat)
-    % r(:,k-k_SK+k_VK+1:k-k_SK+k_VK+n_n) = r(:,k+k_V+1:k+k_V+n_n)
+    % r(:,k-k_SK+k_VK+1:k-k_SK+k_VK+k_hat) = r(:,k+k_V+1:k+k_V+k_hat)
     beq = [r(1,k_V+1:k_V+k_hat)';r(2,k_V+1:k_V+k_hat)'];
     %          -u_P*y_TP                                            -u_N*y_FN                                       q_P  
     Aeq_P = [-1*diag(y_known(1,:)), zeros(k_lc,n_n-k_lc), -1*diag(y_known(3,:)) zeros(k_lc,n_n-k_lc) eye(k_lc) zeros(k_lc,2*n_n-k_lc)];
