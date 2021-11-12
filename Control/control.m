@@ -33,7 +33,7 @@ end
 assert(startAt<endAt,'Last frame before first relevant frame. This is either an error in the config or no particles appear until endFrame.');
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Initialisierung des Reglers
+%% Initialisierung des MPC
 % Massenstrom der Targets und der Massenstrom der No-Targets hin
 szenarioFolder = 'Szenario';
 r_measured = getSzenario(szenarioFolder);
@@ -44,7 +44,12 @@ qMax = 300;
 
 k_hat = int16((c.tau_LV + c.tau_KO + c.tau_OL+ c.tau_V+ c.tau_SK)/c.T);
 % Steuerhorizont
-n_n = k_hat;
+if isfield(c,'n_n')
+    n_n = c.n_n;
+else
+    n_n = k_hat;
+    warning('No control horizon specified: k_hat=%d is the new control horizon',k_hat)
+end
 x0 = zeros(4*n_n,1);
 %Für das Einlesen der Datei, die die zweite Kamera simuliert
 % Sortierte_Partikel/Partikel_xxx.txt, mit xxx = Zeitstempel
