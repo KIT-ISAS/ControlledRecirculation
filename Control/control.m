@@ -36,7 +36,7 @@ assert(startAt<endAt,'Last frame before first relevant frame. This is either an 
 %% Initialisierung des MPC
 % Massenstrom der Targets und der Massenstrom der No-Targets hin
 szenarioFolder = 'Szenario';
-r_measured = getSzenario(szenarioFolder);
+r_measured = getSzenario(szenarioFolder,c.fileName);
 % Anzahl Zustaende
 n_x = 4;
 % Maximum number of particles on the conveyor belt
