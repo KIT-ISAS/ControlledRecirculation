@@ -1,4 +1,4 @@
-function [u_p,u_n,x_opt,exitflag,fval]  = mpcSchuettgut(r_measured, x0, y_measured, q_measured, u_measured, n_n, k_hat,k_LV,k_V,k_VK,k_KL,n_x, c, opt, q_op,scale,q_max)
+function [uMPC,x_opt,exitflag,fval]  = mpcSchuettgut(r_measured, x0, y_measured, q_measured, u_measured, n_n, k_hat,k_LV,k_V,k_VK,k_KL,n_x, c, opt, q_op,scale,q_max)
 %MPC Modellprädiktiver Regler für die Regelung einer Partikelrückführung
 %für einen optischen Schüttgutsortierer.
 %   Input:
@@ -107,4 +107,5 @@ else
 end
 u_p = x_opt(1);
 u_n = x_opt(n_n+1);
+uMPC = [u_p;u_n];
 end

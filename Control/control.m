@@ -7,8 +7,6 @@ midpointMatrix = zeros(2,0,0);
 orientationMatrix = zeros(0,0);
 visualClassificationMatrix = zeros(0,0,0);
 allParam = getDefaultParam();
-percentageAccept = 0;
-percentageReject = 0;
 allParam.live.enabled=1;
 c.type='MPC';
 ii=3; % Count variable for folder content 
@@ -44,6 +42,13 @@ n_x = 4;
 % Maximum number of particles on the conveyor belt
 qMax = 300;
 
+
+percentageAccept = 0;
+percentageReject = 0;
+u = [percentageAccept;percentageReject];
+
+% Use PI as well when using MPC?
+
 k_hat = int16((c.tau_LV + c.tau_KO + c.tau_OL+ c.tau_V+ c.tau_SK)/c.T);
 % Steuerhorizont
 if isfield(c,'n_n')
@@ -67,6 +72,12 @@ k_KL        = int16((c.tau_KO + c.tau_OL)/c.T);
 q_measured  = zeros(2,k_KL);
 k_VK        = int16((c.tau_V + c.tau_SK)/c.T);
 u_measured  = zeros(2,k_VK);
+
+% Initialisierung des PI des MPC
+x_control = zeros(2,1);
+% P-Anteil
+kP = 0.9;
+kI = 0.1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 for t=startAt:endAt
@@ -122,19 +133,20 @@ for t=startAt:endAt
                 if (size(contyfol,1)==ii) % Nur reingehen wenn neue Messung hinzukommt 
                         file_number_1 = contyfol(ii).name(20:23);
                         file_number_2 = contyfol(ii).name(25:28);
-%                     first_number = sprintf( '%04d', file_number_1 );
-%                     second_number = sprintf( '%04d', file_number_2 );
                     first_number=file_number_1;
                     second_number=file_number_2;                   
                     y_fileStamp = strcat(y_fol,'\',y_file,first_number,'.',second_number,'.txt');
                     y = readSortedParticles(y_fileStamp);
+                    % zum testen
+                    y = [85;2;3;7];
+                    q = [89;11];
                     % Messvektoren werden mit 0en initialisiert und dann wird in jedem
                     % Zeitschritt der älteste Wert gelöscht und der aktuellste neu
                     % eingefügt
                     y_measured(:,1)     = [];
                     y_measured(:,k_LK)  = y;
                     u_measured(:,1)     = [];
-                    u_measured(:,k_VK)  = [percentageAccept;percentageReject];
+                    u_measured(:,k_VK)  = u;
                     q_measured(:,1)     = [];
                     q_measured(:,k_KL)  = q;
                     if n_p > 1
@@ -144,10 +156,10 @@ for t=startAt:endAt
                         % Zufluss wird als konstant angenommen
                         r = r_measured;
                     end
-                    [percentageAccept,percentageReject,x_opt,exitflag,fval] = ...
+                    [uMPC,x_opt,exitflag,fval] = ...
                         mpcSchuettgut(r, x0, y_measured, q_measured, u_measured,n_n, ...
                         k_hat,k_LV,k_V,k_VK,k_KL,n_x, [c.weights.cTPR 0 0 c.weights.cTNR], c.objective, [0 0],1,qMax);
-                    x0 = x_opt;
+                    x0 = x_opt; 
                     ii=ii+1;
                     jj = jj +1;
                 end
@@ -159,18 +171,23 @@ for t=startAt:endAt
             otherwise
                 warning('unknown controller type.')
         end
-        percentageAccept = min(max(percentageAccept, 0),1);
-        percentageReject = min(max(percentageReject, 0),1);
-        fprintf('Accept percentage %f\n',percentageAccept);
-        fprintf('Reject percentage %f\n',percentageReject);
-        % Print to file
-        fileID = fopen('control.txt','w');
-    %     fprintf(fileID,'%6s %12s %12s\n','timestep','percentageAccept','percentageReject');
-    %     fprintf(fileID,'%6f %12.2f %12.2f\n',[timestep percentageAccept percentageReject]);
-        fprintf(fileID,'%20s %20s\n','percentageAccept','percentageReject');
-        fprintf(fileID,'%20.5f %20.5f\n',[percentageAccept percentageReject]);
-        fclose(fileID);
     end
+    switch c.type
+        case 'MPC'
+        % time discrete PI controller as described in [Lunze2020
+        % Regelungstechnik 2 p. 524]
+        x_control = x_control + uMPC - u;
+        u = -kI*x_control -kP*(uMPC-u);
+    end
+    fprintf('Accept percentage %f\n',percentageAccept);
+    fprintf('Reject percentage %f\n',percentageReject);
+    % Print to file
+    fileID = fopen('control.txt','w');
+%     fprintf(fileID,'%6s %12s %12s\n','timestep','percentageAccept','percentageReject');
+%     fprintf(fileID,'%6f %12.2f %12.2f\n',[timestep percentageAccept percentageReject]);
+    fprintf(fileID,'%20s %20s\n','percentageAccept','percentageReject');
+    fprintf(fileID,'%20.5f %20.5f\n',[percentageAccept percentageReject]);
+    fclose(fileID);
 end
 end
 
