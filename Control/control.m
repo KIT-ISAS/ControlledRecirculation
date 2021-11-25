@@ -2,7 +2,22 @@ function [percentageAccept,percentageReject] = control(c)
 %CONTROL Summary of this function goes here
 %   Detailed explanation goes here
 
+%% Important
+% in all matrices and vectors representing mass flows or particle flows the
+% accept particles are in the first row and the reject particles are in the
+% second row (e.g. vectors r_measured, q
+
+% in some other vectors it might be vice versa due to the fact that the
+% acceptID is chosen as 2. This includes the vectors density, radius, 
+
+% matrices with first dimension equal to 4 often represent mass flows after
+% the separation. The order of the rows is following
+% [correctly sorted accept; falsely sorted reject; falsely sorted accept; falsely sorted reject]
+% [TP; FP; FN; TN] if accept are positive particles and reject are negative
+
 %% Parameters
+acceptID = 2;
+rejectID = 1;
 midpointMatrix = zeros(2,0,0);
 orientationMatrix = zeros(0,0);
 visualClassificationMatrix = zeros(0,0,0);
@@ -34,13 +49,19 @@ assert(startAt<endAt,'Last frame before first relevant frame. This is either an 
 %% Initialisierung des MPC
 % Massenstrom der Targets und der Massenstrom der No-Targets hin
 szenarioFolder = 'Szenario';
-r_measured = getSzenario(szenarioFolder,c.fileName,c.T);
-% Prädiktionshorizont
+type = [acceptID;rejectID];
+% input mass flow in g/s, radius and density
+[r_measured,radius,density] = getSzenario(szenarioFolder,c.fileName,c.T,type);
+% Praediktionshorizont
 n_p = size(r_measured,2);
-% Anzahl Zustaende
+% number of states
 n_x = 4;
 % Maximum number of particles on the conveyor belt
-qMax = 300;
+if isfield(c,'qMax')
+    qMax = c.qMax;
+else
+    qMax = Inf;
+end
 
 
 percentageAccept = 0;
@@ -58,7 +79,7 @@ else
     warning('No control horizon specified: k_hat=%d is the new control horizon',k_hat)
 end
 x0 = zeros(4*n_n,1);
-%Für das Einlesen der Datei, die die zweite Kamera simuliert
+%Fuer das Einlesen der Datei, die die zweite Kamera simuliert
 % Sortierte_Partikel/Partikel_xxx.txt, mit xxx = Zeitstempel
 y_fol='..\Sortierte_Partikel';
 y_file = 'Partikel_';
@@ -75,9 +96,6 @@ u_measured  = zeros(2,k_VK);
 
 % Initialisierung des PI des MPC
 x_control = zeros(2,1);
-% P-Anteil
-kP = 0.9;
-kI = 0.1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 for t=startAt:endAt
@@ -113,9 +131,9 @@ for t=startAt:endAt
         color = currMeasurements.visualClassifications(1,:);
         % Stimmt das hier so mit den Werten 1 und 2?
         % Das hier sollen die no-targets sein
-        sum_color_accept = sum(color == 2);
+        sum_color_accept = sum(color == acceptID);
         % das hier sollen die targets sein
-        sum_color_reject = sum(color == 1);
+        sum_color_reject = sum(color == rejectID);
         switch c.type
             case 'PI'
                 % Hier kommt der PI Regler hin
@@ -137,12 +155,18 @@ for t=startAt:endAt
                     second_number=file_number_2;                   
                     y_fileStamp = strcat(y_fol,'\',y_file,first_number,'.',second_number,'.txt');
                     y = readSortedParticles(y_fileStamp);
-                    % zum testen
-                    y = [85;2;3;7];
-                    q = [89;11];
+                    % q and y are measured in particles/s, since they are
+                    % simply counted. The characteristics of the separation
+                    % unit and the vector r are using the unit g/s
+                    % Therefore, the units of y and q have to be transformed
+                    % to g/s
+                    y_type = [acceptID;rejectID;acceptID;rejectID];
+                    q_type = [acceptID;rejectID];
+                    y = particles2grams(y,y_type,density, radius);
+                    q = particles2grams(q,q_type,density, radius);
                     % Messvektoren werden mit 0en initialisiert und dann wird in jedem
-                    % Zeitschritt der älteste Wert gelöscht und der aktuellste neu
-                    % eingefügt
+                    % Zeitschritt der aellteste Wert geloescht und der aktuellste neu
+                    % eingefuegt
                     y_measured(:,1)     = [];
                     y_measured(:,k_LK)  = y;
                     u_measured(:,1)     = [];

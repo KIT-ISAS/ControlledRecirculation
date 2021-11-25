@@ -1,4 +1,4 @@
-function [r,radius,density] = getSzenario(folder,fileName,deltaT)
+function [r,radius,density] = getSzenario(folder,fileName,deltaT,type)
 %UNTITLED2 Summary of this function goes here
 %   Detailed explanation goes here
 % szenario file
@@ -38,14 +38,20 @@ end
 r = [rP; rN];
 % radius in mm
 if isfield(S,'radius_mm')
-    radius = [S.radius_mm.P; S.radius_mm.N];
+    % radius of accept particles
+    radius(type(1)) = S.radius_mm.P;
+    % radius of reject particles
+    radius(type(2)) = S.radius_mm.N; 
 else
     warning('no radius defined')
     radius = zeros(2,1);
 end
 % density in kg/m^3
 if isfield(S,'density_kg_m')
-    density = [S.density_kg_m.P; S.density_kg_m.N];
+    % density of accept particles
+    density(type(1)) = S.density_kg_m.P; 
+    % density of reject particles
+    density(type(2)) = S.density_kg_m.N;
 else
     warning('no density defined')
     density = zeros(2,1);

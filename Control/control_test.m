@@ -2,7 +2,22 @@ function [U,U_mpc,T,V,S,Q,q_added,tpr_controlled,tnr_controlled] = control_test(
 %CONTROL Summary of this function goes here
 %   Detailed explanation goes here
 
+%% Important
+% in all matrices and vectors representing mass flows or particle flows the
+% accept particles are in the first row and the reject particles are in the
+% second row (e.g. vectors r_measured, q
+
+% in some other vectors it might be vice versa due to the fact that the
+% acceptID is chosen as 2. This includes the vectors density, radius, 
+
+% matrices with first dimension equal to 4 often represent mass flows after
+% the separation. The order of the rows is following
+% [correctly sorted accept; falsely sorted reject; falsely sorted accept; falsely sorted reject]
+% [TP; FP; FN; TN] if accept are positive particles and reject are negative
+
 %% Parameters
+acceptID = 2;
+rejectID = 1;
 startAt=0;
 % We do not want it to stop. Use double to prevent index from becoming
 % int, which can cause problems.
@@ -11,23 +26,22 @@ endAt=20;
 %% Initialisierung des MPC
 % Massenstrom der Targets und der Massenstrom der No-Targets hin
 szenarioFolder = 'Szenario';
+% type: first row of r_measured is for the accept particles==1
+%       second row of r_measured is for the reject particles==2
+type = [acceptID;rejectID];
 % input mass flow in g/s, radius and density
-[r_gs,radius,density] = getSzenario(szenarioFolder,c.fileName,c.T);
-%% Transform mass flow to particle flow
-Volume = zeros(2,1);
-% approximated volume of an accept particle in m^3
-Volume(1) = 4/3*pi*(radius(1)/1000)^3;
-% approximated volume of a reject particle in m^3
-Volume(2) = 4/3*pi*(radius(2)/1000)^3;
-% input mass flow in particles/s
-r_measured(1,:) = r_gs(1,:)/(1000*density(1)*Volume(1));
-r_measured(2,:) = r_gs(2,:)/(1000*density(2)*Volume(2));
-% Prädiktionshorizont
-n_p = size(r_gs,2);
-% Anzahl Zustaende
+[r_measured,radius,density] = getSzenario(szenarioFolder,c.fileName,c.T,type);
+
+% Praediktionshorizont
+n_p = size(r_measured,2);
+% number of states
 n_x = 4;
 % Maximum number of particles on the conveyor belt
-qMax = 300;
+if isfield(c,'qMax')
+    qMax = c.qMax;
+else
+    qMax = Inf;
+end
 
 
 percentageAccept = 0;
