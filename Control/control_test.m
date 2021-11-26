@@ -1,4 +1,4 @@
-function [U,U_mpc,T,V,S,Q,q_added,tpr_controlled,tnr_controlled] = control_test(c)
+function [U,U_mpc,T,V,S,Q,q_added,tpr_controlled,tnr_controlled,tpr_OL,tnr_OL] = control_test(c)
 %CONTROL Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -21,7 +21,7 @@ rejectID = 1;
 startAt=0;
 % We do not want it to stop. Use double to prevent index from becoming
 % int, which can cause problems.
-endAt=20;
+endAt=60;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Initialisierung des MPC
 % Massenstrom der Targets und der Massenstrom der No-Targets hin
@@ -49,6 +49,12 @@ percentageReject = 0;
 u = [percentageAccept;percentageReject];
 
 % Use PI as well when using MPC?
+if isfield(c,'PI')
+    PI = c.PI.use;
+else
+    PI = 0;
+    warning('No PI controller specified: no PI controller is used when the MPC is used')
+end
 
 k_hat = int16((c.tau_LV + c.tau_KO + c.tau_OL+ c.tau_V+ c.tau_SK)/c.T);
 % Steuerhorizont
@@ -57,6 +63,19 @@ if isfield(c,'n_n')
 else
     n_n = k_hat;
     warning('No control horizon specified: k_hat=%d is the new control horizon',k_hat)
+end
+% Use filter?
+if isfield(c,'filter')
+    switch c.filter.type
+        case 'mean'
+            mean_steps = c.filter.mean.n_steps;
+            filter = 'mean';
+        otherwise
+            filter = 'off';
+    end
+else
+    warning('No filter specified')
+    filter = 'off';
 end
 x0 = zeros(4*n_n,1);
 %Für das Einlesen der Datei, die die zweite Kamera simuliert
@@ -96,7 +115,10 @@ N = [1 0 1 0; 0 1 0 1];
 Y = zeros(4,endAt/deltaT);
 Q = zeros(2,endAt/deltaT);
 uMPC = zeros(2,1);
-% noise
+% nur fuers Testen %%%%%%%%%%%%%%%%%%%%%
+Q_OL = zeros(2,endAt/deltaT);
+Y_OL = zeros(4,endAt/deltaT);
+% noise: das hier nur fuers Testen %%%%%%%%%%%%%%%%%
 rng(1002)
 noise_yTP = 0.2 + rand(1,endAt/deltaT);
 rng(55)
@@ -110,8 +132,33 @@ rng(7)
 rounded_noise_qP = randi(round(r_measured(1)/10),1,endAt/deltaT);
 rounded_noise_qN = randi(round(r_measured(2)),1,endAt/deltaT);
 rounded_noise_q = [rounded_noise_qP;rounded_noise_qN];
+%%%%%%%%%%%%%%%%%%%%%
 for t=(2*deltaT):deltaT:endAt
-    % Set new mesurements
+    %%%%%%%%%%%%%% nur fuer den Test %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    q = q0 + rounded_noise_q(:,k) + q_added(:,k-1);
+    Q_OL(:,k) = q0 + rounded_noise_q(:,k);
+    if k>pi_KL
+        [y,~,~] = calcY(Q(1,k-pi_KL),Q(2,k-pi_KL),1);
+        [y_OL,~,~] = calcY(Q_OL(1,k-pi_KL),Q_OL(2,k-pi_KL),1);
+        y = round(noise_y(:,k).*y);
+        y_OL = round(noise_y(:,k).*y_OL);
+    else
+        y = zeros(4,1);
+        y_OL = zeros(4,1);
+    end
+    Y(:,k) = y;
+    Q(:,k) = q;
+    Y_OL(:,k) = y_OL;
+    % Ab hier wie das System auf die letzte Stellgröße
+    % reagiert hat
+    if k>pi_LV
+        V(:,k) = round((M'*u).*Y(:,k-pi_LV));
+        S(:,k) = Y(:,k-pi_LV)-V(:,k);
+    end
+    if k>pi_VK
+        q_added(:,k) = N*V(:,k-pi_VK);
+    end
+    %%%%%%%%%%% ab hier nicht mehr nur fuers testen%%%%%%%%%%%
         switch c.type
             case 'PI'
                 % Hier kommt der PI Regler hin
@@ -122,27 +169,6 @@ for t=(2*deltaT):deltaT:endAt
 %                 percentageAccept = c.qP.a*sum_color_accept + c.qP.b*sum_color_reject;
 %                 percentageReject = c.qP.c*sum_color_accept + c.qP.d*sum_color_reject;        
             case 'MPC'
-                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                q = q0 + rounded_noise_q(:,k) + q_added(:,k-1);
-                
-%                 y = y + rounded_noise_y;
-                if k>pi_KL
-                    [y,~,~] = calcY(Q(1,k-pi_KL),Q(2,k-pi_KL),1);
-                    y = round(noise_y(:,k).*y);
-                else
-                    y = zeros(4,1);
-                end
-                Y(:,k) = y;
-                Q(:,k) = q;
-                % Ab hier wie das System auf die letzte Stellgröße
-                % reagiert hat
-                if k>pi_LV
-                    V(:,k) = round((M'*u).*Y(:,k-pi_LV));
-                    S(:,k) = Y(:,k-pi_LV)-V(:,k);
-                end
-                if k>pi_VK
-                    q_added(:,k) = N*V(:,k-pi_VK);
-                end
                 if mod(t,c.T)==0
                     % Messvektoren werden mit 0en initialisiert und dann wird in jedem
                     % Zeitschritt der älteste Wert gelöscht und der aktuellste neu
@@ -153,6 +179,11 @@ for t=(2*deltaT):deltaT:endAt
                     u_measured(:,k_VK)  = u;
                     q_measured(:,1)     = [];
                     q_measured(:,k_KL)  = q;
+                    switch filter
+                        case 'mean'
+                            y_measured = movmean(y_measured,mean_steps,2);
+                            q_measured = movmean(q_measured,mean_steps,2);
+                    end
                     if n_p > 1
                         % Zufluss wird nicht als konstant angenommen
                         r = r_measured(:,jj:n_p);
@@ -179,7 +210,7 @@ for t=(2*deltaT):deltaT:endAt
         U_mpc(:,k) = uMPC;
         switch c.type
             case 'MPC'
-            if c.PI.use == 1
+            if PI == 1
                 % time discrete PI controller as described in [Lunze2020
                 % Regelungstechnik 2 p. 524]
                 u = -c.PI.kI*x_control -c.PI.kP*(u-uMPC);
@@ -193,8 +224,11 @@ for t=(2*deltaT):deltaT:endAt
         k = k+1;     
 end
 T = deltaT:deltaT:endAt;
-plot(T,[U;U_mpc]')
 tpr_controlled = S(1,:)./(S(1,:)+S(3,:));
 tnr_controlled = S(4,:)./(S(4,:)+S(2,:));
+tpr_OL = Y_OL(1,:)./(Y_OL(1,:)+Y_OL(3,:));
+tnr_OL = Y_OL(4,:)./(Y_OL(4,:)+Y_OL(2,:));
+labels = {'TPR','TNR','Open Loop TPR','Open Loop TNR'};
+plotControllerTest(T,[tpr_controlled; tnr_controlled;tpr_OL;tnr_OL],50,c.fileName,'Raten',labels)
 end
 
