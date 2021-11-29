@@ -160,8 +160,7 @@ for t=startAt:endAt
         end
         fprintf('Processing time step %d\n',t);
         % currNumberOfMeasurements = number of particles in camera area?
-        %[currMeasurements,currNumberOfMeasurements]=readMidpointsLive(allParam.live.DEMOutput);
-        [currMeasurements,currNumberOfMeasurements]=readMidpointsLive('PartikelpositionenEmpty.txt');
+        [currMeasurements,currNumberOfMeasurements]=readMidpointsLive(allParam.live.DEMOutput);
         if currNumberOfMeasurements==0 % Throw warning to be able to detect when this occurred
             warning('LiveMode:NoMeas','No measurements were obtained at time step %5.5G.',t*allParam.live.timeStepMultiplier);
         end
