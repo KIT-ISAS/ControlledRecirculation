@@ -160,7 +160,8 @@ for t=startAt:endAt
         end
         fprintf('Processing time step %d\n',t);
         % currNumberOfMeasurements = number of particles in camera area?
-        [currMeasurements,currNumberOfMeasurements]=readMidpointsLive(allParam.live.DEMOutput);
+        %[currMeasurements,currNumberOfMeasurements]=readMidpointsLive(allParam.live.DEMOutput);
+        [currMeasurements,currNumberOfMeasurements]=readMidpointsLive('PartikelpositionenEmpty.txt');
         if currNumberOfMeasurements==0 % Throw warning to be able to detect when this occurred
             warning('LiveMode:NoMeas','No measurements were obtained at time step %5.5G.',t*allParam.live.timeStepMultiplier);
         end
@@ -214,7 +215,9 @@ for t=startAt:endAt
                 % Since no IDs of y particles are detected, y is
                 % approximated by q (mass flow of q and y should be quite
                 % similar)
-                y = y/sum(y)*sum(q);
+                if sum(y) ~= 0
+                    y = y/sum(y)*sum(q);
+                end
                 % Messvektoren werden mit 0en initialisiert und dann wird in jedem
                 % Zeitschritt der aellteste Wert geloescht und der aktuellste neu
                 % eingefuegt
