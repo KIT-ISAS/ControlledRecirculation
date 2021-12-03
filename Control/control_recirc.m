@@ -1,4 +1,4 @@
-function [U,U_mpc,time_error,Q,Q_mpc,exitF] = control_recirc(c)
+function [U,U_mpc,time_error,Q,Q_mpc,exitF,Y,Q_gs_mean] = control_recirc(c)
 %CONTROL Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -23,12 +23,14 @@ orientationMatrix = zeros(0,0);
 visualClassificationMatrix = zeros(0,0,0);
 allParam = getDefaultParam();
 allParam.live.enabled=1;
-c.type='MPC';
+q_type = [acceptID;rejectID];
+percentageAccept = 0;
+percentageReject = 0;
+u = [percentageAccept;percentageReject];
+% c.type='MPC';
 ii=3; % Count variable for folder content 
 jj = 1; % Count variable for reading particle input of system
 fileID = fopen('control.txt','w');
-%     fprintf(fileID,'%6s %12s %12s\n','timestep','percentageAccept','percentageReject');
-%     fprintf(fileID,'%6f %12.2f %12.2f\n',[timestep percentageAccept percentageReject]);
 fprintf(fileID,'%20s %20s\n','percentageAccept','percentageReject');
 fprintf(fileID,'%20.2f %20.2f\n',[0.0 0.0]);
 fclose(fileID);
@@ -39,7 +41,9 @@ if ~allParam.live.enabled
 else
     startAt=1;
     % only simulation times up to 100 s considered
-    endAt=100/0.005;
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    endAt=200/0.005;
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end
 
 assert(startAt<endAt,'Last frame before first relevant frame. This is either an error in the config or no particles appear until endFrame.');
@@ -47,15 +51,17 @@ assert(startAt<endAt,'Last frame before first relevant frame. This is either an 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Initialisierung des MPC
 uMPC = zeros(2,1);
+% resetting the particle ID list for calculating the mass flow on the
+% conveyor belt
 list_ID = [];
 particles = [];
-y_type = [acceptID;rejectID;acceptID;rejectID];
-q_type = [acceptID;rejectID];
+resetList = 0;
+timeReset = zeros(1,endAt);
+timesteps_measured = 0;
 % Massenstrom der Targets und der Massenstrom der No-Targets hin
-szenarioFolder = '../MPC/Szenario';
-type = [acceptID;rejectID];
+szenarioFolder = '../SchuettgutDEM/Szenario';
 % input mass flow in g/s, radius and density
-[r_measured,radius,density] = getSzenario(szenarioFolder,c.fileName,c.T,type);
+[r_measured,radius,density] = getSzenario(szenarioFolder,c.fileName,c.T,q_type);
 
 % Praediktionshorizont
 n_p = size(r_measured,2);
@@ -68,11 +74,30 @@ else
     qMax = Inf;
 end
 
+%Fuer das Einlesen der Datei, die die zweite Kamera simuliert
+% Sortierte_Partikel/Partikel_xxx.txt, mit xxx = Zeitstempel
+y_folmain=pwd;
+y_fol=[y_folmain(1:end-4) '\Sortierte_Partikel'];
 
-percentageAccept = 0;
-percentageReject = 0;
-u = [percentageAccept;percentageReject];
+% Initialisierung der Totzeiten und Messvektoren
+k_LV        = int16(c.tau_LV/c.T);
+k_V         = int16(c.tau_V/c.T);
+k_LK        = int16((c.tau_LV + c.tau_V + c.tau_SK)/c.T);
+y_measured  = zeros(4,k_LK);
+k_KL        = int16((c.tau_KO + c.tau_OL)/c.T);
+q_measured  = zeros(2,k_KL);
+k_VK        = int16((c.tau_V + c.tau_SK)/c.T);
+u_measured  = zeros(2,k_VK);
+% time steps needed for a particle for a whole recirculation
+k_hat = int16((c.tau_LV + c.tau_KO + c.tau_OL+ c.tau_V+ c.tau_SK)/c.T);
 
+U_mpc = zeros(2,endAt);
+U = zeros(2,endAt);
+Q = zeros(2,endAt);
+Y = zeros(4,endAt);
+Q_mpc = zeros(2,endAt);
+time_error = zeros(1,endAt);
+exitF = 100*ones(1,endAt);
 % Use PI as well when using MPC?
 if isfield(c,'PI')
     PI = c.PI.use;
@@ -80,9 +105,8 @@ else
     PI = 0;
     warning('No PI controller specified: no PI controller is used when the MPC is used')
 end
-
-% time steps needed for a particle for a whole recirculation
-k_hat = int16((c.tau_LV + c.tau_KO + c.tau_OL+ c.tau_V+ c.tau_SK)/c.T);
+% Initialisierung des PI des MPC
+x_control = zeros(2,1);
 
 % Steuerhorizont
 if isfield(c,'n_n')
@@ -91,6 +115,8 @@ else
     n_n = k_hat;
     warning('No control horizon specified: k_hat=%d is the new control horizon',k_hat)
 end
+% Starting point for the optimization
+x0 = zeros(4*n_n,1);
 
 % Use filter?
 if isfield(c,'filter')
@@ -106,30 +132,6 @@ else
     warning('No filter specified')
     filter = 'off';
 end
-
-x0 = zeros(4*n_n,1);
-%Fuer das Einlesen der Datei, die die zweite Kamera simuliert
-% Sortierte_Partikel/Partikel_xxx.txt, mit xxx = Zeitstempel
-y_folmain=pwd;
-y_fol=[y_folmain(1:end-4) '\Sortierte_Partikel'];
-
-% Initialisierung der Totzeiten und Messvektoren
-k_LV        = int16(c.tau_LV/c.T);
-k_V         = int16(c.tau_V/c.T);
-k_LK        = int16((c.tau_LV + c.tau_V + c.tau_SK)/c.T);
-y_measured  = zeros(4,k_LK);
-k_KL        = int16((c.tau_KO + c.tau_OL)/c.T);
-q_measured  = zeros(2,k_KL);
-k_VK        = int16((c.tau_V + c.tau_SK)/c.T);
-u_measured  = zeros(2,k_VK);
-U_mpc = zeros(2,endAt);
-U = zeros(2,endAt);
-Q = zeros(2,endAt);
-Q_mpc = zeros(2,endAt);
-time_error = zeros(1,endAt);
-exitF = 100*ones(1,endAt);
-% Initialisierung des PI des MPC
-x_control = zeros(2,1);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 time = 0;
 for t=startAt:endAt
@@ -178,6 +180,11 @@ for t=startAt:endAt
         % das hier sollen die targets sein
         sum_color_reject = sum(particles == rejectID);
         Q(:,t) = [sum_color_accept; sum_color_reject];
+        timesteps_measured = timesteps_measured + 1;
+    end
+    % reset particle list every k_V time steps
+    if mod(t,int16(c.tau_V/0.005))==0
+        resetList = 1;
     end
     switch c.type
         case 'PI'
@@ -189,12 +196,16 @@ for t=startAt:endAt
         case 'MPC'
             % Second Camera
             contyfol=dir(y_fol);
+            % Benoetigt Jonathan zum Testen
+%             contyfol = dir('Sortierte_Partikel');
             if (size(contyfol,1)==ii) % Nur reingehen wenn neue Messung hinzukommt 
                 file_number_1 = contyfol(ii).name(10:13);
                 file_number_2 = contyfol(ii).name(15:18);
                 first_number=file_number_1;
                 second_number=file_number_2;                   
                 y_fileStamp = strcat(y_fol,'\Partikel_',first_number,'.',second_number,'.txt');
+                % Benoetigt Jonathan zum Testen
+%                 y_fileStamp = strcat('Sortierte_Partikel','\Partikel_',first_number,'.',second_number,'.txt');
                 y = readSortedParticles(y_fileStamp);
                 % Das hier sollen die no-targets sein
                 sum_color_accept = sum(particles == acceptID);
@@ -217,6 +228,7 @@ for t=startAt:endAt
                 if sum(y) ~= 0
                     y = y/sum(y)*sum(q);
                 end
+                Y(:,t) = y;
                 % Messvektoren werden mit 0en initialisiert und dann wird in jedem
                 % Zeitschritt der aellteste Wert geloescht und der aktuellste neu
                 % eingefuegt
@@ -228,8 +240,13 @@ for t=startAt:endAt
                 q_measured(:,k_KL)  = q;
                 % reset particle lists and time
                 time = 0;
-                list_ID = [];
                 particles = [];
+                if resetList == 1
+                    dispstat(sprintf('reset list_ID at time step %d of %d\n',t,endAt));
+                    list_ID(1:round(length(list_ID)*0.8)) = [];
+                    timeReset(t) = 1;
+                    resetList = 0;
+                end
                 % Use filter?
                 switch filter
                     case 'mean'
@@ -249,6 +266,8 @@ for t=startAt:endAt
                 x0 = x_opt;
                 uMPC(1) = min(max(uMPC(1),0),1);
                 uMPC(2) = min(max(uMPC(2),0),1);
+                fprintf('Accept percentage %f\n',uMPC(1));
+                fprintf('Reject percentage %f\n',uMPC(2));
                 ii=ii+1;
                 jj = jj +1;
             end
@@ -273,15 +292,24 @@ for t=startAt:endAt
     U(:,t) = u;
     percentageAccept = u(1);
     percentageReject = u(2);
-    fprintf('Accept percentage %f\n',percentageAccept);
-    fprintf('Reject percentage %f\n',percentageReject);
+    %fprintf('Accept percentage %f\n',percentageAccept);
+    %fprintf('Reject percentage %f\n',percentageReject);
     % Print to file
     fileID = fopen('control.txt','w');
-%     fprintf(fileID,'%6s %12s %12s\n','timestep','percentageAccept','percentageReject');
-%     fprintf(fileID,'%6f %12.2f %12.2f\n',[timestep percentageAccept percentageReject]);
     fprintf(fileID,'%20s %20s\n','percentageAccept','percentageReject');
     fprintf(fileID,'%20.5f %20.5f\n',[percentageAccept percentageReject]);
     fclose(fileID);
 end
+Q_mpc_neq1 = Q_mpc(1,:) ~=0;
+Q_mpc_neq2 = Q_mpc(2,:) ~=0;
+Q_mpc_gs_mean = [mean(Q_mpc(1,Q_mpc_neq1));mean(Q_mpc(2,Q_mpc_neq2))];
+Q_neq1 = Q(1,:) ~=0;
+Q_neq2 = Q(2,:) ~=0;
+T_total = timesteps_measured*0.005;
+Q_ps_mean = [mean(Q(1,Q_neq1));mean(Q(2,Q_neq2))]/T_total;
+Q_gs_mean = particles2grams(Q_ps_mean,q_type,density, radius);
+fprintf('qP in g/s %f\n',Q_mpc_gs_mean(1));
+fprintf('qN in g/s %f\n',Q_mpc_gs_mean(2));
+save('test.mat')
 end
 

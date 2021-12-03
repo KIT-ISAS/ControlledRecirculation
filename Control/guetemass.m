@@ -125,6 +125,32 @@ switch opt
             J =J_ez + J_R;
         end
     case 5
+        uP_1 = uP(1:k_hat);
+        uN_1 = uN(1:k_hat);
+        uP_2 = uP(k_hat+1:n_n);
+        uN_2 = uN(k_hat+1:n_n);
+        TP1 = (1-uP_1)'.*y_known(1,:);
+        FP1 = (1-uP_1)'.*y_known(2,:);
+        FN1 = (1-uN_1)'.*y_known(3,:);
+        TN1 = (1-uN_1)'.*y_known(4,:);
+        % q(k+k_VK+1:k-k_KL-k_LV+n_n)
+        q_p1 = x(2*n_n+k_VK+1:3*n_n-k_KL-k_LV);
+        q_n1 = x(3*n_n+k_VK+1:4*n_n-k_KL-k_LV);
+        y_var = calcY(q_p1,q_n1,scale);
+        TP2 = (1-uP_2)'.*y_var(1,:);
+        FP2 = (1-uP_2)'.*y_var(2,:);
+        FN2 = (1-uN_2)'.*y_var(3,:);
+        TN2 = (1-uN_2)'.*y_var(4,:);
+        TP = [TP1 TP2];
+        FP = [FP1 FP2];
+        FN = [FN1 FN2];
+        TN = [TN1 TN2];
+        % precision
+        PPV = TP./(TP+FP+delta);
+        % negative predictive value
+        NPV = TN./(TN+FN+delta);
+        J =c(1)*sum(PPV) +c(4)*sum(NPV);
+    case 6
         J = sum(c(1)*(x(2*n_n+1:3*n_n)- q_op(1)*ones(n_n,1)).^2 + c(2)*(x(3*n_n+1:4*n_n)- q_op(2)*ones(n_n,1)).^2);
     otherwise
         J = 0;
