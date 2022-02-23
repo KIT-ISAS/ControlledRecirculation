@@ -1,2 +1,7 @@
-Eigentlich ist nur der Simulink Ordner relevant.
-Für die Infos zu dem Simulink Ordner verweise ich hier auf die ReadMe Datei im Simulink Ordner
+The repository consists of 5 main folders:
+1. "Control_DEM" is only needed for interacting with the DEM.
+2. "Datenauswertung" contains all files to calculate and display the characteristics. 
+3. "Kennlinie" contains the characteristics stored as matlab functions of the separation unit
+4. "Offline Optimization" calculates the optimal control variables and the maximal improvement of an objective function. It requires the folder "Kennlinie"
+5. "Simulink" contains the Simulink model. The model is opened by opening the project file "Simulink.prj". It requires the folders "Kennlinie", "ressources" and "slprj".
+

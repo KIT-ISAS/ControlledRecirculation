@@ -1,7 +1,6 @@
-function [c,ceq] = nonlincon(x,r_s, k_OV, n_n, alpha, beta)
+function [c,ceq] = nonlincon(x,r_s, k_OV, n_n, scale)
 %NONLINCON nichtlineare Nebenbedingungen des optischen Schüttgutsortierers
 %   Detailed explanation goes here
-scale = 1;
 u_p = x(1:n_n);
 u_n = x(n_n+1:2*n_n);
 q_P = x(2*n_n+1:3*n_n);
